@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <title>Sample Form</title>
+
+  <!-- ✅ Load AWS SDK (Lex, Kendra, etc.) -->
+  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
+
+  <!-- Optionally load Lex Web UI (when you integrate it) -->
+  <!-- <script src="https://your-cdn-path/lex-web-ui-loader.min.js"></script> -->
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -66,12 +73,31 @@
     </form>
   </div>
 
+  <!-- ✅ AWS SDK is loaded, now you can write voice-based logic -->
   <script>
     document.getElementById('contactForm').addEventListener('submit', function(e) {
       e.preventDefault();
       alert("Form submitted successfully!");
       this.reset();
     });
+
+    // Placeholder: Once Lex integration is added, you can fill the form fields like:
+    function fillFormFromLex(data) {
+      document.getElementById("name").value = data.Name || "";
+      document.getElementById("email").value = data.Email || "";
+      document.getElementById("phone").value = data.Phone || "";
+      document.getElementById("address").value = data.Address || "";
+    }
+
+    // Example: If Lex returns slot values
+    /*
+    fillFormFromLex({
+      Name: "John",
+      Email: "john@example.com",
+      Phone: "9876543210",
+      Address: "Door No: 1-2-314 Hyderabad"
+    });
+    */
   </script>
 
 </body>
