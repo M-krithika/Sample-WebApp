@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Amazon Polly Voice Button</title>
+</head>
+<body style="font-family: Arial; text-align: center; padding: 50px;">
+  <h2>🎤 Voice Assistant - Amazon Polly</h2>
+  <button onclick="fetchAndPlayAudio()" style="padding: 10px 20px; font-size: 16px;">🔊 Speak</button>
+  <br><br>
+  <audio id="audioPlayer" controls style="width: 100%; max-width: 500px;"></audio>
+
+  <script>
+    async function fetchAndPlayAudio() {
+      const response = await fetch("https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ text: "Hello! This is a voice from Amazon Polly, speaking through your web form." })
+      });
+
+      const data = await response.json();
+      const audioBase64 = data.audio || JSON.parse(data.body).audio;
+
+      const audioPlayer = document.getElementById("audioPlayer");
+      audioPlayer.src = "data:audio/mp3;base64," + audioBase64;
+      audioPlayer.load();
+      audioPlayer.play();
+    }
+  </script>
+</body>
+</html>
