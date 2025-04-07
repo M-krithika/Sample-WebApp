@@ -1,208 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Contact Form</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:400,700">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Assistant Form</title>
+  <link rel="stylesheet" href="style.css" />
   <style>
     body {
-      font-family: 'Roboto', sans-serif;
-      background-color: #f4f4f4;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f2f2f2;
+      padding: 40px;
     }
-
-    .container {
-      background-color: #fff;
-      padding: 30px 40px;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      width: 400px;
+    .form-container {
+      max-width: 400px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
     }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-      color: #333;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 700;
-      color: #555;
-    }
-
-    input, textarea {
+    .form-container input {
       width: 100%;
       padding: 10px;
       margin-bottom: 15px;
       border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 14px;
+      border-radius: 10px;
     }
-
-    button[type="submit"] {
-      width: 100%;
-      background-color: #4285f4;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 12px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
     #voiceButton {
-      position: fixed;
-      bottom: 30px;
-      left: 30px;
-      background-color: #007bff;
+      background: #007bff;
+      color: white;
       border: none;
       border-radius: 50%;
       width: 60px;
       height: 60px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-size: 24px;
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      animation: buzz 1s infinite alternate;
       cursor: pointer;
+      transition: transform 0.3s;
     }
-
-    @keyframes buzz {
-      0% { transform: rotate(-5deg); }
-      100% { transform: rotate(5deg); }
+    #voiceButton.buzz {
+      animation: pulse 1s infinite;
     }
-
-    #voiceIcon {
-      width: 28px;
-      height: 28px;
-      filter: invert(100%);
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
   </style>
 </head>
 <body>
+  <div class="form-container">
+    <input type="text" id="name" placeholder="Name" />
+    <input type="email" id="email" placeholder="Email" />
+    <input type="tel" id="phone" placeholder="Phone Number" />
+    <input type="text" id="address" placeholder="Address" />
+  </div>
+  <button id="voiceButton">🎤</button>
 
-<div class="container">
-  <h2>Contact Form</h2>
-  <form id="contactForm">
-    <label for="name">Name*</label>
-    <input type="text" id="name" required>
+  <script>
+    const voiceButton = document.getElementById("voiceButton");
+    const fields = ["name", "email", "phone", "address"];
+    let currentField = 0;
 
-    <label for="email">Email ID*</label>
-    <input type="email" id="email" required>
+    voiceButton.onclick = async () => {
+      voiceButton.classList.add("buzz");
+      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
+        method: 'POST',
+        body: JSON.stringify({ text: "Hello, I am your AI assistant. I will help you fill this form. Can I get your name?" }),
+        headers: { 'Content-Type': 'application/json' }
+      });
 
-    <label for="phone">Phone Number</label>
-    <input type="tel" id="phone" maxlength="10" placeholder="10-digit number">
+      const audioData = await res.json();
+      const audio = new Audio("data:audio/mp3;base64," + audioData.audio);
+      audio.play();
 
-    <label for="address">Address</label>
-    <textarea id="address" rows="3"></textarea>
-
-    <button type="submit">Submit</button>
-  </form>
-</div>
-
-<!-- Voice Assistant Button -->
-<button id="voiceButton">
-  <img id="voiceIcon" src="https://img.icons8.com/ios-filled/50/ffffff/microphone.png" alt="Mic" />
-</button>
-
-<script>
-  const voiceButton = document.getElementById("voiceButton");
-  const fields = ['name', 'email', 'phone', 'address'];
-  let currentField = 0;
-
-  voiceButton.onclick = async () => {
-    const pollyResponse = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
-      method: 'POST',
-      body: JSON.stringify({ text: "Hello, I am your AI assistant. I will help you fill this form. Can I get your name?" }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    const audioData = await pollyResponse.json();
-    const audio = new Audio("data:audio/mp3;base64," + audioData.audio);
-    audio.play();
-
-    audio.onended = () => {
-      startTranscription();
-    }
-  };
-
-  async function startTranscription() {
-    const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
-    const { transcribe_url } = await res.json();
-    console.log("WebSocket URL:", transcribe_url);
-
-    const ws = new WebSocket(transcribe_url);
-    ws.binaryType = 'arraybuffer';
-
-    const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const audioContext = new AudioContext();
-    const source = audioContext.createMediaStreamSource(mediaStream);
-    const processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-    source.connect(processor);
-    processor.connect(audioContext.destination);
-
-    processor.onaudioprocess = (e) => {
-      const input = e.inputBuffer.getChannelData(0);
-      const buffer = convertFloat32ToInt16(input);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(buffer);
-      }
+      setTimeout(() => {
+        startTranscription();
+      }, 5000);
     };
 
-    ws.onmessage = (msg) => {
-      try {
-        const message = JSON.parse(typeof msg.data === 'string' ? msg.data : new TextDecoder().decode(msg.data));
-        const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-        if (transcript && transcript.length > 0) {
-          console.log("Transcript received:", transcript);
-          handleTranscript(transcript.toLowerCase());
+    async function startTranscription() {
+      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
+      const { transcribe_url } = await res.json();
+      console.log("WebSocket URL:", transcribe_url);
+
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(mediaStream);
+      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+      const ws = new WebSocket(transcribe_url);
+      ws.binaryType = 'arraybuffer';
+
+      ws.onopen = () => {
+        console.log("WebSocket open");
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
+        processor.onaudioprocess = (e) => {
+          const input = e.inputBuffer.getChannelData(0);
+          const buffer = convertFloat32ToInt16(input);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(buffer);
+          }
+        };
+      };
+
+      ws.onmessage = async (msg) => {
+        try {
+          const text = await msg.data.text();
+          const lines = text.split('\r\n');
+          const jsonLine = lines.find(line => line.trim().startsWith('{'));
+          if (!jsonLine) return;
+          const message = JSON.parse(jsonLine);
+          const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+
+          if (transcript && transcript.length > 0) {
+            console.log("Transcript:", transcript);
+            fillFormField(transcript);
+          }
+        } catch (err) {
+          console.error("Parsing error:", err);
         }
-      } catch (err) {
-        console.error("Message parsing error:", err);
+      };
+
+      ws.onerror = console.error;
+    }
+
+    function convertFloat32ToInt16(buffer) {
+      const l = buffer.length;
+      const buf = new Int16Array(l);
+      while (l--) buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
+      return buf.buffer;
+    }
+
+    function fillFormField(text) {
+      text = text.trim().toLowerCase();
+
+      if (text.includes("my name is")) {
+        text = text.split("my name is")[1].trim();
+      } else if (text.includes("i am")) {
+        text = text.split("i am")[1].trim();
       }
-    };
-  }
 
-  function convertFloat32ToInt16(buffer) {
-    let l = buffer.length;
-    const buf = new Int16Array(l);
-    while (l--) buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
-    return buf.buffer;
-  }
-
-  function handleTranscript(text) {
-    const nameMatch = text.match(/my name is (\w+)|i am (\w+)|this is (\w+)|^(\w+)$/);
-    if (currentField === 0 && nameMatch) {
-      const name = nameMatch[1] || nameMatch[2] || nameMatch[3] || nameMatch[4];
-      document.getElementById("name").value = name;
-      currentField++;
-      askNextField();
-      return;
+      const field = document.getElementById(fields[currentField]);
+      if (field && !field.value) {
+        field.value = text;
+        currentField++;
+        if (currentField < fields.length) {
+          askNextQuestion();
+        } else {
+          voiceButton.classList.remove("buzz");
+        }
+      }
     }
 
-    const fieldId = fields[currentField];
-    const field = document.getElementById(fieldId);
-    if (field && !field.value) {
-      field.value = text;
-      currentField++;
-      askNextField();
-    }
-  }
-
-  function askNextField() {
-    if (currentField < fields.length) {
-      const next = fields[currentField];
+    function askNextQuestion() {
+      const nextField = fields[currentField].replace('_', ' ');
       fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
         method: 'POST',
-        body: JSON.stringify({ text: `Can I get your ${next}?` }),
+        body: JSON.stringify({ text: `Can I get your ${nextField}?` }),
         headers: { 'Content-Type': 'application/json' }
       })
       .then(res => res.json())
@@ -211,8 +170,6 @@
         audio.play();
       });
     }
-  }
-</script>
-
+  </script>
 </body>
 </html>
