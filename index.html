@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>AI Form Assistant</title>
+  <title>Sample Form</title>
+  <link rel="icon" href="data:,">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -103,41 +104,40 @@
 
   <script>
     const voiceButton = document.getElementById("voiceButton");
-    let currentField = 0;
     const fields = ['name', 'email', 'phone', 'address'];
+    let currentField = 0;
 
     voiceButton.onclick = async () => {
       voiceButton.classList.add("buzz");
-
-      const pollyRes = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
-        method: 'POST',
-        body: JSON.stringify({ text: "Hello, I am your AI assistant. I will help you fill this form. Can I get your name?" }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await pollyRes.json();
-      const audio = new Audio("data:audio/mp3;base64," + data.audio);
-      audio.play();
-
+      await speak("Hello, I am your AI assistant. I will help you fill this form. Can I get your name?");
       setTimeout(() => {
         startTranscription();
       }, 4000);
     };
 
+    async function speak(text) {
+      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      const audio = new Audio("data:audio/mp3;base64," + data.audio);
+      audio.play();
+      return new Promise(resolve => audio.onended = resolve);
+    }
+
     async function startTranscription() {
       const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
       const { transcribe_url } = await res.json();
-      console.log("WebSocket URL:", transcribe_url);
-
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const audioCtx = new AudioContext();
       const source = audioCtx.createMediaStreamSource(stream);
       const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-
       const ws = new WebSocket(transcribe_url);
       ws.binaryType = 'arraybuffer';
 
       ws.onopen = () => {
-        console.log("WebSocket open");
         source.connect(processor);
         processor.connect(audioCtx.destination);
         processor.onaudioprocess = e => {
@@ -149,18 +149,13 @@
         };
       };
 
-     ws.onmessage = msg => {
+      ws.onmessage = msg => {
         try {
-          const text = typeof msg.data === "string" ? msg.data : new TextDecoder("utf-8").decode(msg.data);
-      
-          // Some raw WebSocket messages may not be JSON - safely skip
-          if (!text.trim().startsWith("{")) return;
-      
+          const text = new TextDecoder("utf-8").decode(msg.data);
+          if (!text.trim().startsWith('{')) return;
           const json = JSON.parse(text);
           const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-      
-          if (transcript && transcript.length > 0) {
-            console.log("Transcript:", transcript);
+          if (transcript) {
             fillFormField(transcript);
           }
         } catch (e) {
@@ -176,35 +171,45 @@
     }
 
     function convertFloat32ToInt16(buffer) {
-      let l = buffer.length;
-      const buf = new Int16Array(l);
-      while (l--) buf[l] = Math.min(1, buffer[l]) * 0x7fff;
+      const buf = new Int16Array(buffer.length);
+      for (let i = 0; i < buffer.length; i++) {
+        buf[i] = Math.min(1, buffer[i]) * 0x7fff;
+      }
       return buf.buffer;
     }
 
-    function fillFormField(text) {
-      const cleaned = text.toLowerCase().replace(/[^\w\s]/gi, "");
-      const field = document.getElementById(fields[currentField]);
+    async function fillFormField(text) {
+      const cleaned = text.toLowerCase().replace(/[^\w\s@.]/gi, "");
+      const fieldId = fields[currentField];
+      const field = document.getElementById(fieldId);
 
       if (field && !field.value) {
-        const match = cleaned.match(/(?:my name is|i am|this is)?\s*(\w+\s*\w*)/);
-        field.value = match ? match[1] : text;
-        currentField++;
+        if (fieldId === 'email') {
+          const emailMatch = cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
+          field.value = emailMatch ? emailMatch[0] : text;
+        } else {
+          const match = cleaned.match(/(?:my name is|i am|this is)?\s*(\w+\s*\w*)/);
+          field.value = match ? match[1] : text;
+        }
 
+        currentField++;
         if (currentField < fields.length) {
-          fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
-            method: 'POST',
-            body: JSON.stringify({ text: `Can I get your ${fields[currentField]}?` }),
-            headers: { 'Content-Type': 'application/json' }
-          })
-            .then(res => res.json())
-            .then(data => {
-              const audio = new Audio("data:audio/mp3;base64," + data.audio);
-              audio.play();
-            });
+          await speak(`Can I get your ${fields[currentField]}?`);
+        } else {
+          document.getElementById("submitBtn").click();
+          await speak("Thank you for submitting the form. You did great!");
         }
       }
     }
+
+    document.getElementById("submitBtn").onclick = () => {
+      console.log("Form Submitted:");
+      console.log("Name:", document.getElementById("name").value);
+      console.log("Email:", document.getElementById("email").value);
+      console.log("Phone:", document.getElementById("phone").value);
+      console.log("Address:", document.getElementById("address").value);
+      alert("Form submitted! Thank you.");
+    };
   </script>
 </body>
 </html>
