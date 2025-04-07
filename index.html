@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Contact Form</title>
   <style>
     body {
@@ -12,7 +12,6 @@
       align-items: center;
       height: 100vh;
     }
-
     .container {
       background-color: white;
       padding: 40px;
@@ -20,18 +19,8 @@
       box-shadow: 0 0 15px rgba(0,0,0,0.1);
       width: 400px;
     }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-    }
-
+    h2 { text-align: center; margin-bottom: 30px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
     input, textarea {
       width: 100%;
       padding: 10px;
@@ -39,7 +28,6 @@
       border-radius: 5px;
       border: 1px solid #ccc;
     }
-
     button {
       width: 100%;
       padding: 12px;
@@ -49,7 +37,6 @@
       border-radius: 5px;
       font-size: 16px;
     }
-
     #voiceButton {
       position: fixed;
       bottom: 20px;
@@ -62,20 +49,14 @@
       cursor: pointer;
       animation: buzz 1s infinite alternate;
     }
-
     @keyframes buzz {
       0% { transform: rotate(-5deg); }
       100% { transform: rotate(5deg); }
     }
-
-    #voiceIcon {
-      width: 24px;
-      height: 24px;
-    }
+    #voiceIcon { width: 24px; height: 24px; }
   </style>
 </head>
 <body>
-
   <div class="container">
     <h2>Contact Form</h2>
     <form id="contactForm">
@@ -102,6 +83,8 @@
 
   <script>
     const voiceButton = document.getElementById("voiceButton");
+    let currentField = 0;
+    const fields = ['name', 'email', 'phone', 'address'];
 
     voiceButton.onclick = async () => {
       const pollyResponse = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
@@ -116,67 +99,68 @@
       const audio = new Audio(audioSrc);
       audio.play();
 
-      setTimeout(() => {
+      audio.onended = () => {
         startTranscription();
-      }, 5000);
+      };
     };
 
     async function startTranscription() {
-      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
-      const { transcribe_url } = await res.json();
+      try {
+        const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
+        const { transcribe_url } = await res.json();
+        console.log("WebSocket URL:", transcribe_url);
 
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(mediaStream);
-      const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(mediaStream);
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
 
-      const ws = new WebSocket(transcribe_url);
-      ws.binaryType = 'arraybuffer';
+        const ws = new WebSocket(transcribe_url);
+        ws.binaryType = 'arraybuffer';
 
-      ws.onopen = () => {
-        source.connect(processor);
-        processor.connect(audioContext.destination);
+        ws.onopen = () => {
+          console.log("WebSocket open");
+          source.connect(processor);
+          processor.connect(audioContext.destination);
 
-        processor.onaudioprocess = (e) => {
-          const input = e.inputBuffer.getChannelData(0);
-          const buffer = convertFloat32ToInt16(input);
-          ws.send(buffer);
+          processor.onaudioprocess = (e) => {
+            const input = e.inputBuffer.getChannelData(0);
+            const buffer = convertFloat32ToInt16(input);
+            ws.send(buffer);
+          };
         };
-      };
 
-      ws.onmessage = (msg) => {
-        try {
-          let message;
+        ws.onmessage = (msg) => {
+          try {
+            let message;
+            if (typeof msg.data === "string") {
+              message = JSON.parse(msg.data);
+            } else {
+              const decoder = new TextDecoder("utf-8");
+              const decoded = decoder.decode(msg.data);
+              message = JSON.parse(decoded);
+            }
 
-          if (typeof msg.data === "string") {
-            message = JSON.parse(msg.data);
-          } else {
-            const decoder = new TextDecoder("utf-8");
-            const decoded = decoder.decode(msg.data);
-            message = JSON.parse(decoded);
+            const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+            const isFinal = message.Transcript?.Results?.[0]?.IsPartial === false;
+
+            if (transcript && isFinal) {
+              console.log("Transcript:", transcript);
+              fillFormField(transcript);
+            }
+          } catch (err) {
+            console.error("Message parsing error:", err);
           }
+        };
 
-          const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-          if (transcript) {
-            fillFormField(transcript);
-          }
-        } catch (err) {
-          console.error("WebSocket message error:", err);
-        }
-      };
-
-      ws.onerror = console.error;
+        ws.onerror = (e) => {
+          console.error("WebSocket error:", e);
+        };
+      } catch (err) {
+        console.error("Transcription setup error:", err);
+        alert("Please allow microphone access or check console logs.");
+      }
     }
-
-    function convertFloat32ToInt16(buffer) {
-      let l = buffer.length;
-      const buf = new Int16Array(l);
-      while (l--) buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
-      return buf.buffer;
-    }
-
-    let currentField = 0;
-    const fields = ['name', 'email', 'phone', 'address'];
 
     function fillFormField(text) {
       const field = document.getElementById(fields[currentField]);
@@ -184,9 +168,10 @@
         field.value = text;
         currentField++;
         if (currentField < fields.length) {
+          const next = fields[currentField];
           fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
             method: 'POST',
-            body: JSON.stringify({ text: `Can I get your ${fields[currentField].replace('_', ' ')}?` }),
+            body: JSON.stringify({ text: `Can I get your ${next}?` }),
             headers: { 'Content-Type': 'application/json' }
           })
           .then(res => res.json())
@@ -197,7 +182,16 @@
         }
       }
     }
-  </script>
 
+    function convertFloat32ToInt16(buffer) {
+      const l = buffer.length;
+      const result = new Int16Array(l);
+      for (let i = 0; i < l; i++) {
+        let s = Math.max(-1, Math.min(1, buffer[i]));
+        result[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      }
+      return result.buffer;
+    }
+  </script>
 </body>
 </html>
