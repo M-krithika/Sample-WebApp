@@ -4,77 +4,107 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Voice Assistant Form</title>
-  <link rel="stylesheet" href="style.css" />
   <style>
     body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #f2f2f2;
-      padding: 40px;
+      font-family: Arial, sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 0;
     }
-    .form-container {
-      max-width: 400px;
-      margin: auto;
-      background: #fff;
+    .container {
+      max-width: 500px;
+      margin: 50px auto;
+      background-color: #fff;
       padding: 20px;
-      border-radius: 15px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
     }
-    .form-container input {
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input[type="text"], input[type="email"] {
       width: 100%;
       padding: 10px;
-      margin-bottom: 15px;
       border: 1px solid #ccc;
-      border-radius: 10px;
+      border-radius: 4px;
     }
     #voiceButton {
-      background: #007bff;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #007bff;
       color: white;
-      border: none;
       border-radius: 50%;
       width: 60px;
       height: 60px;
-      font-size: 24px;
-      position: fixed;
-      bottom: 30px;
-      right: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
       cursor: pointer;
-      transition: transform 0.3s;
+      z-index: 1000;
+      transition: transform 0.2s ease-in-out;
+      font-size: 24px;
+    }
+    @keyframes buzz {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(2deg); }
+      50% { transform: rotate(-2deg); }
+      75% { transform: rotate(2deg); }
+      100% { transform: rotate(0deg); }
     }
     #voiceButton.buzz {
-      animation: pulse 1s infinite;
-    }
-    @keyframes pulse {
-      0% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-      100% { transform: scale(1); }
+      animation: buzz 0.2s linear 3;
     }
   </style>
 </head>
 <body>
-  <div class="form-container">
-    <input type="text" id="name" placeholder="Name" />
-    <input type="email" id="email" placeholder="Email" />
-    <input type="tel" id="phone" placeholder="Phone Number" />
-    <input type="text" id="address" placeholder="Address" />
+  <div class="container">
+    <h2>AI Assistant Form</h2>
+    <div class="form-group">
+      <label for="name">Name:</label>
+      <input type="text" id="name" />
+    </div>
+    <div class="form-group">
+      <label for="email">Email:</label>
+      <input type="text" id="email" />
+    </div>
+    <div class="form-group">
+      <label for="phone">Phone:</label>
+      <input type="text" id="phone" />
+    </div>
+    <div class="form-group">
+      <label for="address">Address:</label>
+      <input type="text" id="address" />
+    </div>
   </div>
-  <button id="voiceButton">🎤</button>
+
+  <div id="voiceButton">🎤</div>
 
   <script>
     const voiceButton = document.getElementById("voiceButton");
-    const fields = ["name", "email", "phone", "address"];
-    let currentField = 0;
 
     voiceButton.onclick = async () => {
       voiceButton.classList.add("buzz");
-      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
+      setTimeout(() => voiceButton.classList.remove("buzz"), 600);
+
+      const pollyResponse = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
         method: 'POST',
         body: JSON.stringify({ text: "Hello, I am your AI assistant. I will help you fill this form. Can I get your name?" }),
         headers: { 'Content-Type': 'application/json' }
       });
 
-      const audioData = await res.json();
-      const audio = new Audio("data:audio/mp3;base64," + audioData.audio);
+      const audioData = await pollyResponse.json();
+      const audioSrc = "data:audio/mp3;base64," + audioData.audio;
+      const audio = new Audio(audioSrc);
       audio.play();
 
       setTimeout(() => {
@@ -91,6 +121,7 @@
       const audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(mediaStream);
       const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
       const ws = new WebSocket(transcribe_url);
       ws.binaryType = 'arraybuffer';
 
@@ -108,29 +139,24 @@
         };
       };
 
-      ws.onmessage = async (event) => {
+      ws.onmessage = (msg) => {
         try {
-          // Convert the ArrayBuffer to a string
-          const decoder = new TextDecoder('utf-8');
-          const text = decoder.decode(event.data);
-      
-          // Split the text into lines and find the JSON part
-          const lines = text.split('\r\n');
-          const jsonLine = lines.find(line => line.startsWith('{'));
-      
-          if (jsonLine) {
-            const message = JSON.parse(jsonLine);
-            const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-      
-            if (transcript) {
-              console.log("Transcript:", transcript);
-              fillFormField(transcript);
-            }
+          let message;
+          if (typeof msg.data === "string") {
+            message = JSON.parse(msg.data);
           } else {
-            console.warn("No JSON data found in message:", text);
+            const decoder = new TextDecoder("utf-8");
+            const decoded = decoder.decode(msg.data);
+            message = JSON.parse(decoded);
           }
-        } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
+
+          const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+          if (transcript) {
+            console.log("Transcript:", transcript);
+            fillFormField(transcript);
+          }
+        } catch (err) {
+          console.error("Message parsing error:", err);
         }
       };
 
@@ -138,45 +164,33 @@
     }
 
     function convertFloat32ToInt16(buffer) {
-      const l = buffer.length;
+      let l = buffer.length;
       const buf = new Int16Array(l);
       while (l--) buf[l] = Math.min(1, buffer[l]) * 0x7FFF;
       return buf.buffer;
     }
 
+    let currentField = 0;
+    const fields = ['name', 'email', 'phone', 'address'];
+
     function fillFormField(text) {
-      text = text.trim().toLowerCase();
-
-      if (text.includes("my name is")) {
-        text = text.split("my name is")[1].trim();
-      } else if (text.includes("i am")) {
-        text = text.split("i am")[1].trim();
-      }
-
       const field = document.getElementById(fields[currentField]);
       if (field && !field.value) {
         field.value = text;
         currentField++;
         if (currentField < fields.length) {
-          askNextQuestion();
-        } else {
-          voiceButton.classList.remove("buzz");
+          fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
+            method: 'POST',
+            body: JSON.stringify({ text: `Can I get your ${fields[currentField]}?` }),
+            headers: { 'Content-Type': 'application/json' }
+          })
+          .then(res => res.json())
+          .then(data => {
+            const audio = new Audio("data:audio/mp3;base64," + data.audio);
+            audio.play();
+          });
         }
       }
-    }
-
-    function askNextQuestion() {
-      const nextField = fields[currentField].replace('_', ' ');
-      fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
-        method: 'POST',
-        body: JSON.stringify({ text: `Can I get your ${nextField}?` }),
-        headers: { 'Content-Type': 'application/json' }
-      })
-      .then(res => res.json())
-      .then(data => {
-        const audio = new Audio("data:audio/mp3;base64," + data.audio);
-        audio.play();
-      });
     }
   </script>
 </body>
