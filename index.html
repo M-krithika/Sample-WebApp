@@ -179,17 +179,20 @@
     }
 
     async function fillFormField(text) {
-      const cleaned = text.toLowerCase().replace(/[^\w\s@.]/gi, "");
+      const cleaned = text.toLowerCase().replace(/[^\w\s@.]/gi, "").trim();
       const fieldId = fields[currentField];
       const field = document.getElementById(fieldId);
 
       if (field && !field.value) {
-        if (fieldId === 'email') {
-          const emailMatch = cleaned.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
-          field.value = emailMatch ? emailMatch[0] : text;
+        if (fieldId === 'email' && cleaned.includes('@')) {
+          const emailMatch = cleaned.match(/\S+@\S+\.\S+/);
+          field.value = emailMatch ? emailMatch[0] : cleaned;
+        } else if (fieldId === 'phone') {
+          const phone = cleaned.match(/\d{10,}/);
+          field.value = phone ? phone[0] : cleaned;
         } else {
-          const match = cleaned.match(/(?:my name is|i am|this is)?\s*(\w+\s*\w*)/);
-          field.value = match ? match[1] : text;
+          const match = cleaned.match(/(?:my name is|i am|this is)?\s*(.*)/);
+          field.value = match ? match[1] : cleaned;
         }
 
         currentField++;
