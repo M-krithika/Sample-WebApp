@@ -128,56 +128,51 @@
     }
 
     async function startTranscription() {
-      try {
-        const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
-        const { transcribe_url } = await res.json();
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const audioCtx = new AudioContext();
-        const source = audioCtx.createMediaStreamSource(stream);
-        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-        const ws = new WebSocket(transcribe_url);
-        ws.binaryType = 'arraybuffer';
-
-        ws.onopen = () => {
-          source.connect(processor);
-          processor.connect(audioCtx.destination);
-          processor.onaudioprocess = e => {
-            const input = e.inputBuffer.getChannelData(0);
-            const int16 = convertFloat32ToInt16(input);
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(int16);
-            }
-          };
-        };
-
-        ws.onmessage = msg => {
-          console.log("Raw WebSocket message:", msg.data);
-          try {
-            const text = new TextDecoder("utf-8").decode(msg.data);
-            if (!text.trim().startsWith('{')) return;
-            const json = JSON.parse(text);
-            const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-            if (transcript) {
-              console.log("Transcript:", transcript);
-              fillFormField(transcript);
-            }
-          } catch (e) {
-            console.error("Message parsing error:", e);
+      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
+      const { transcribe_url } = await res.json();
+      const ws = new WebSocket(transcribe_url);
+      ws.binaryType = 'arraybuffer';
+    
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const audioCtx = new AudioContext();
+      await audioCtx.audioWorklet.addModule('processor.js');
+    
+      const source = audioCtx.createMediaStreamSource(stream);
+      const workletNode = new AudioWorkletNode(audioCtx, 'pcm-worklet-processor');
+    
+      // When worklet sends audio, send to WebSocket
+      workletNode.port.onmessage = (event) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(event.data);
+        }
+      };
+    
+      source.connect(workletNode);
+      workletNode.connect(audioCtx.destination);
+    
+      ws.onmessage = (msg) => {
+        try {
+          const text = new TextDecoder("utf-8").decode(msg.data);
+          console.log("WebSocket raw data:", text);
+          if (!text.trim().startsWith('{')) return;
+          const json = JSON.parse(text);
+          const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+          if (transcript) {
+            console.log("Transcript:", transcript);
+            fillFormField(transcript);
           }
-        };
-
-        ws.onerror = err => console.error("WebSocket error:", err);
-        ws.onclose = (event) => {
-            voiceButton.classList.remove("buzz");
-            console.log("WebSocket closed:", event.code, event.reason);
-        };
-
-      } catch (err) {
-        console.error("Error getting audio stream:", err);
-        await speak("Microphone access denied or not available.");
-        return;
-      }
+        } catch (e) {
+          console.error("Message parsing error:", e);
+        }
+      };
+    
+      ws.onerror = err => console.error("WebSocket error:", err);
+      ws.onclose = () => {
+        voiceButton.classList.remove("buzz");
+        console.log("WebSocket closed");
+      };
     }
+
 
     function convertFloat32ToInt16(buffer) {
       const buf = new Int16Array(buffer.length);
