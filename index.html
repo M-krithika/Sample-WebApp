@@ -1,109 +1,144 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Voice Assistant Form</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f6f6f6;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
+      background-color: #f5f5f5;
     }
 
     .form-container {
+      max-width: 500px;
+      margin: 60px auto;
       background-color: white;
-      padding: 40px;
-      border-radius: 10px;
-      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-      width: 400px;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
 
-    h1 {
+    .form-container h2 {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
 
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: bold;
-    }
-
-    input, textarea {
+    .form-container input, .form-container textarea, .form-container button {
       width: 100%;
       padding: 10px;
-      margin-bottom: 20px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
+      margin: 10px 0;
     }
 
-    button {
-      width: 100%;
-      padding: 12px;
-      background-color: #4285f4;
+    #voiceButton {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      background-color: #4a90e2;
       color: white;
       border: none;
-      border-radius: 5px;
-      font-size: 16px;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      font-size: 30px;
       cursor: pointer;
     }
 
-    button:hover {
-      background-color: #357ae8;
+    #audioPlayer {
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="form-container">
-    <h1>Contact Form</h1>
-    <form>
-      <label for="name">Name*</label>
-      <input type="text" id="name" name="name" required />
+    <h2>Contact Form</h2>
+    <form id="contactForm">
+      <label>Name*</label>
+      <input type="text" id="name" required>
 
-      <label for="email">Email ID*</label>
-      <input type="email" id="email" name="email" required />
+      <label>Email ID*</label>
+      <input type="email" id="email" required>
 
-      <label for="phone">Phone Number</label>
-      <input type="tel" id="phone" name="phone" placeholder="10-digit number" />
+      <label>Phone Number</label>
+      <input type="text" id="phone" placeholder="10-digit number">
 
-      <label for="address">Address</label>
-      <textarea id="address" name="address" rows="3"></textarea>
+      <label>Address</label>
+      <textarea id="address"></textarea>
 
       <button type="submit">Submit</button>
     </form>
   </div>
 
-  <!-- Voice Assistant Icon -->
-  <div id="voiceAssistant" style="
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    background-color: #007bff;
-    color: white;
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-    z-index: 1000;
-  " title="Ask something">
-    💬
-  </div>
-
-  <!-- Polly Response Text + Audio Player -->
-  <div id="voiceResponse" style="position: fixed; bottom: 80px; left: 20px; background: #f1f1f1; padding: 10px; border-radius: 8px; display: none; max-width: 300px;">
-    <p id="responseText" style="margin: 0; font-weight: bold;"></p>
-    <audio id="audioPlayer" controls style="width: 100%; margin-top: 5px;"></audio>
-  </div>
+  <button id="voiceButton">🔊</button>
+  <audio id="audioPlayer" controls></audio>
 
   <script>
-    const apiUrl = "https://n4kgojcoui.execute-api.eu-west-
+    const apiUrl = "https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly"; // replace with your actual Polly API Gateway URL
+    const audioPlayer = document.getElementById("audioPlayer");
+    const form = document.getElementById("contactForm");
+
+    const questions = [
+      { key: "name", prompt: "Can I get your first name?" },
+      { key: "email", prompt: "Can I get your email ID?" },
+      { key: "phone", prompt: "May I have your 10-digit phone number?" },
+      { key: "address", prompt: "Please tell me your address." }
+    ];
+
+    document.getElementById("voiceButton").addEventListener("click", async () => {
+      await speak("Hello I am your AI assistant. I will be helping you to fill this form.");
+
+      for (const field of questions) {
+        await speak(field.prompt);
+        const answer = prompt(field.prompt);
+        if (answer !== null) {
+          document.getElementById(field.key).value = answer;
+        }
+      }
+
+      await speak("Thank you! The form is now filled. Please review and submit.");
+    });
+
+    async function speak(text) {
+      try {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await response.json();
+        if (data.audio) {
+          const audioBlob = b64ToBlob(data.audio, "audio/mp3");
+          const audioUrl = URL.createObjectURL(audioBlob);
+          audioPlayer.src = audioUrl;
+          await playAudio(audioPlayer);
+        }
+      } catch (error) {
+        console.error("Error with Polly API:", error);
+      }
+    }
+
+    function playAudio(audioElement) {
+      return new Promise((resolve) => {
+        audioElement.onended = resolve;
+        audioElement.play();
+      });
+    }
+
+    function b64ToBlob(base64, mime) {
+      const byteChars = atob(base64);
+      const byteArrays = [];
+      for (let offset = 0; offset < byteChars.length; offset += 512) {
+        const slice = byteChars.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        byteArrays.push(new Uint8Array(byteNumbers));
+      }
+      return new Blob(byteArrays, { type: mime });
+    }
+  </script>
+</body>
+</html>
