@@ -140,18 +140,22 @@
               const decoded = decoder.decode(msg.data);
               message = JSON.parse(decoded);
             }
-
-            const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-            const isFinal = message.Transcript?.Results?.[0]?.IsPartial === false;
-
+        
+            console.log("Full message from Transcribe:", message);
+        
+            const result = message.Transcript?.Results?.[0];
+            const transcript = result?.Alternatives?.[0]?.Transcript;
+            const isFinal = result?.IsPartial === false;
+        
             if (transcript && isFinal) {
-              console.log("Transcript:", transcript);
+              console.log("Final transcript:", transcript);
               fillFormField(transcript);
             }
           } catch (err) {
-            console.error("Message parsing error:", err);
+            console.error("WebSocket message error:", err);
           }
         };
+
 
         ws.onerror = (e) => {
           console.error("WebSocket error:", e);
