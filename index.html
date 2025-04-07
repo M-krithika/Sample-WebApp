@@ -149,12 +149,16 @@
         };
       };
 
-      ws.onmessage = msg => {
+     ws.onmessage = msg => {
         try {
-          let json;
           const text = typeof msg.data === "string" ? msg.data : new TextDecoder("utf-8").decode(msg.data);
-          json = JSON.parse(text);
+      
+          // Some raw WebSocket messages may not be JSON - safely skip
+          if (!text.trim().startsWith("{")) return;
+      
+          const json = JSON.parse(text);
           const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+      
           if (transcript && transcript.length > 0) {
             console.log("Transcript:", transcript);
             fillFormField(transcript);
