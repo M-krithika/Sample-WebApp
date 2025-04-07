@@ -4,126 +4,73 @@
   <meta charset="UTF-8">
   <title>Voice Assistant Form</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f5f5f5;
+    .buzz-button {
+      animation: buzz 0.3s linear infinite alternate;
     }
 
-    .form-container {
-      max-width: 500px;
-      margin: 60px auto;
-      background-color: white;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    .form-container h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    .form-container input, .form-container textarea, .form-container button {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-    }
-
-    #voiceButton {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      background-color: #4a90e2;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      font-size: 30px;
-      cursor: pointer;
-    }
-
-    #audioPlayer {
-      display: none;
+    @keyframes buzz {
+      0% { transform: translateX(-2px); }
+      100% { transform: translateX(2px); }
     }
   </style>
 </head>
 <body>
-  <div class="form-container">
-    <h2>Contact Form</h2>
-    <form id="contactForm">
-      <label>Name*</label>
-      <input type="text" id="name" required>
+  <h1>Contact Form</h1>
 
-      <label>Email ID*</label>
-      <input type="email" id="email" required>
+  <form id="contactForm">
+    <label for="name">Name*</label><br>
+    <input type="text" id="name" required><br><br>
 
-      <label>Phone Number</label>
-      <input type="text" id="phone" placeholder="10-digit number">
+    <label for="email">Email ID*</label><br>
+    <input type="email" id="email" required><br><br>
 
-      <label>Address</label>
-      <textarea id="address"></textarea>
+    <label for="phone">Phone Number</label><br>
+    <input type="tel" id="phone"><br><br>
 
-      <button type="submit">Submit</button>
-    </form>
-  </div>
+    <label for="address">Address</label><br>
+    <textarea id="address"></textarea><br><br>
 
-  <button id="voiceButton">🔊</button>
-  <audio id="audioPlayer" controls></audio>
+    <button type="submit">Submit</button>
+  </form>
+
+  <button id="voiceButton" class="buzz-button" style="position: fixed; bottom: 20px; left: 20px;">🎤</button>
+  <audio id="audioPlayer" controls style="display:none;"></audio>
 
   <script>
-    const apiUrl = "https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly"; // replace with your actual Polly API Gateway URL
+    const pollyApiUrl = "https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly";
+    const transcribeUrlApi = "https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url";
+
     const audioPlayer = document.getElementById("audioPlayer");
-    const form = document.getElementById("contactForm");
+    const voiceButton = document.getElementById("voiceButton");
 
-    const questions = [
-      { key: "name", prompt: "Can I get your first name?" },
-      { key: "email", prompt: "Can I get your email ID?" },
-      { key: "phone", prompt: "May I have your 10-digit phone number?" },
-      { key: "address", prompt: "Please tell me your address." }
-    ];
+    voiceButton.addEventListener("click", async () => {
+      // Step 1: Speak welcome message from Polly
+      const welcomeMessage = "Hello, I am your AI assistant. I will help you fill this form. Can I get your name?";
+      await speakFromPolly(welcomeMessage);
 
-    document.getElementById("voiceButton").addEventListener("click", async () => {
-      await speak("Hello I am your AI assistant. I will be helping you to fill this form.");
+      // Step 2: Get Transcribe WebSocket URL
+      const response = await fetch(transcribeUrlApi);
+      const { transcribe_url } = await response.json();
 
-      for (const field of questions) {
-        await speak(field.prompt);
-        const answer = prompt(field.prompt);
-        if (answer !== null) {
-          document.getElementById(field.key).value = answer;
-        }
-      }
-
-      await speak("Thank you! The form is now filled. Please review and submit.");
+      // Step 3: Start real-time transcription from microphone
+      startTranscription(transcribe_url);
     });
 
-    async function speak(text) {
-      try {
-        const response = await fetch(apiUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ text })
-        });
-
-        const data = await response.json();
-        if (data.audio) {
-          const audioBlob = b64ToBlob(data.audio, "audio/mp3");
-          const audioUrl = URL.createObjectURL(audioBlob);
-          audioPlayer.src = audioUrl;
-          await playAudio(audioPlayer);
-        }
-      } catch (error) {
-        console.error("Error with Polly API:", error);
-      }
-    }
-
-    function playAudio(audioElement) {
-      return new Promise((resolve) => {
-        audioElement.onended = resolve;
-        audioElement.play();
+    async function speakFromPolly(text) {
+      const response = await fetch(pollyApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
       });
+
+      const data = await response.json();
+      if (data.audio) {
+        const audioBlob = b64ToBlob(data.audio, "audio/mp3");
+        const audioUrl = URL.createObjectURL(audioBlob);
+        audioPlayer.src = audioUrl;
+        audioPlayer.style.display = "block";
+        await audioPlayer.play();
+      }
     }
 
     function b64ToBlob(base64, mime) {
@@ -138,6 +85,52 @@
         byteArrays.push(new Uint8Array(byteNumbers));
       }
       return new Blob(byteArrays, { type: mime });
+    }
+
+    async function startTranscription(wsUrl) {
+      const socket = new WebSocket(wsUrl);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(mediaStream, { mimeType: 'audio/webm;codecs=opus' });
+
+      socket.onopen = () => {
+        mediaRecorder.start(250); // Send every 250ms chunk
+        mediaRecorder.ondataavailable = event => {
+          if (event.data.size > 0 && socket.readyState === WebSocket.OPEN) {
+            event.data.arrayBuffer().then(buffer => {
+              socket.send(buffer);
+            });
+          }
+        };
+      };
+
+      socket.onmessage = event => {
+        const message = JSON.parse(event.data);
+        if (message.Transcript && message.Transcript.Results.length > 0) {
+          const result = message.Transcript.Results[0];
+          if (result.IsPartial === false && result.Alternatives.length > 0) {
+            const transcript = result.Alternatives[0].Transcript.toLowerCase();
+            console.log("Transcript:", transcript);
+            fillFormField(transcript);
+          }
+        }
+      };
+    }
+
+    function fillFormField(transcript) {
+      const form = document.getElementById("contactForm");
+      if (!form.name.value) {
+        form.name.value = transcript;
+        speakFromPolly("Thanks. Can I get your email address?");
+      } else if (!form.email.value) {
+        form.email.value = transcript;
+        speakFromPolly("Great. What is your phone number?");
+      } else if (!form.phone.value) {
+        form.phone.value = transcript;
+        speakFromPolly("Lastly, please tell me your address.");
+      } else if (!form.address.value) {
+        form.address.value = transcript;
+        speakFromPolly("Thank you. All details are captured.");
+      }
     }
   </script>
 </body>
