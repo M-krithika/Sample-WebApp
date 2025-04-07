@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Sample Form</title>
-
-  <!-- ✅ Load AWS SDK (Lex, Polly, etc.) -->
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
-
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -68,71 +65,77 @@
 
       <button type="submit">Submit</button>
     </form>
+
+    <button onclick="startRecording()">🎤 Start Voice</button>
+    <audio id="playAudio" controls></audio>
   </div>
 
   <script>
+    AWS.config.region = 'us-east-1'; // replace with your region
+    AWS.config.credentials = new AWS.Credentials('YOUR_ACCESS_KEY', 'YOUR_SECRET_KEY');
+
+    const lex = new AWS.LexRuntimeV2();
+
+    async function startRecording() {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      let chunks = [];
+
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/wav' });
+        const reader = new FileReader();
+        reader.onload = () => sendToLex(reader.result);
+        reader.readAsArrayBuffer(blob);
+      };
+
+      mediaRecorder.start();
+      setTimeout(() => mediaRecorder.stop(), 4000);
+    }
+
+    async function sendToLex(audioBytes) {
+      const params = {
+        botId: 'YOUR_BOT_ID',
+        botAliasId: 'YOUR_ALIAS_ID',
+        localeId: 'en_US',
+        sessionId: 'user-session',
+        requestContentType: 'audio/l16; rate=16000; channels=1',
+        responseContentType: 'audio/mpeg',
+        inputStream: audioBytes
+      };
+
+      lex.recognizeUtterance(params, function(err, data) {
+        if (err) {
+          console.error(err);
+        } else {
+          const audioBlob = new Blob([data.audioStream], { type: 'audio/mpeg' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          const audioElement = document.getElementById("playAudio");
+          audioElement.src = audioUrl;
+          audioElement.play();
+
+          try {
+            const response = JSON.parse(new TextDecoder().decode(data.messages));
+            fillFormFromLex(response.slots);
+          } catch (e) {
+            console.log('No form data to fill yet.');
+          }
+        }
+      });
+    }
+
+    function fillFormFromLex(slots) {
+      document.getElementById("name").value = slots.name?.value?.interpretedValue || "";
+      document.getElementById("email").value = slots.email?.value?.interpretedValue || "";
+      document.getElementById("phone").value = slots.phone?.value?.interpretedValue || "";
+      document.getElementById("address").value = slots.address?.value?.interpretedValue || "";
+    }
+
     document.getElementById('contactForm').addEventListener('submit', function(e) {
       e.preventDefault();
       alert("Form submitted successfully!");
       this.reset();
     });
-
-    // 🔁 Fill the form using Lex slot data (for automation)
-    function fillFormFromLex(data) {
-      document.getElementById("name").value = data.Name || "";
-      document.getElementById("email").value = data.Email || "";
-      document.getElementById("phone").value = data.Phone || "";
-      document.getElementById("address").value = data.Address || "";
-    }
-
-    // 🔊 Polly Playback if Lex response includes pollyAudio attribute
-    function handleLexResponse(response) {
-      if (response.sessionState?.sessionAttributes?.pollyAudio) {
-        const audioData = response.sessionState.sessionAttributes.pollyAudio;
-        const audio = new Audio("data:audio/mp3;base64," + audioData);
-        audio.play();
-      }
-
-      if (response.messages?.length) {
-        const message = response.messages[0].content;
-        console.log("Lex says:", message);
-      }
-
-      // Example: Auto-fill form using slot values
-      const slots = response.sessionState?.intent?.slots;
-      if (slots) {
-        fillFormFromLex({
-          Name: slots.name?.value?.interpretedValue,
-          Email: slots.email?.value?.interpretedValue,
-          Phone: slots.phone?.value?.interpretedValue,
-          Address: slots.address?.value?.interpretedValue
-        });
-      }
-    }
-
-    // 👇 Example usage
-    /*
-    const sampleResponse = {
-      sessionState: {
-        intent: {
-          slots: {
-            name: { value: { interpretedValue: "John" } },
-            email: { value: { interpretedValue: "john@example.com" } },
-            phone: { value: { interpretedValue: "9876543210" } },
-            address: { value: { interpretedValue: "Door No: 1-2-314 Hyderabad" } }
-          }
-        },
-        sessionAttributes: {
-          pollyAudio: "<BASE64_ENCODED_AUDIO_STRING>"
-        }
-      },
-      messages: [
-        { contentType: "PlainText", content: "Please tell me your email." }
-      ]
-    };
-
-    handleLexResponse(sampleResponse);
-    */
   </script>
 
 </body>
