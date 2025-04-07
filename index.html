@@ -133,29 +133,32 @@
         ws.onmessage = (msg) => {
           try {
             let message;
+        
             if (typeof msg.data === "string") {
               message = JSON.parse(msg.data);
             } else {
-              const decoder = new TextDecoder("utf-8");
-              const decoded = decoder.decode(msg.data);
-              message = JSON.parse(decoded);
-            }
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const decoded = new TextDecoder("utf-8").decode(reader.result);
+                  const json = JSON.parse(decoded);
+                  console.log("Full message from Transcribe:", json);
         
-            console.log("Full message from Transcribe:", message);
-        
-            const result = message.Transcript?.Results?.[0];
-            const transcript = result?.Alternatives?.[0]?.Transcript;
-            const isFinal = result?.IsPartial === false;
-        
-            if (transcript && isFinal) {
-              console.log("Final transcript:", transcript);
-              fillFormField(transcript);
-            }
-          } catch (err) {
-            console.error("WebSocket message error:", err);
+                  const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+                  if (transcript && json.Transcript.Results[0].IsPartial === false) {
+                    console.log("Final transcript:", transcript);
+                    fillFormField(transcript);
+                  }
+                } catch (err) {
+                  console.error("Message decode error:", err);
+                }
+              };
+            reader.readAsArrayBuffer(msg.data);
           }
-        };
-
+        } catch (err) {
+          console.error("Message parsing error:", err);
+        }
+      };
 
         ws.onerror = (e) => {
           console.error("WebSocket error:", e);
@@ -167,10 +170,15 @@
     }
 
     function fillFormField(text) {
+      console.log("Filling form with:", text);
       const field = document.getElementById(fields[currentField]);
+    
       if (field && !field.value) {
-        field.value = text;
+        const cleaned = text.split(" ").slice(-2).join(" ");
+        field.value = cleaned;
+    
         currentField++;
+    
         if (currentField < fields.length) {
           const next = fields[currentField];
           fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
