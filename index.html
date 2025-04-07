@@ -2,117 +2,67 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Sample Form</title>
-  <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 40px;
-    }
-    .form-container {
-      max-width: 500px;
-      margin: auto;
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    h2 {
-      text-align: center;
-    }
-    label {
-      display: block;
-      margin: 15px 0 5px;
-    }
-    input, textarea {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    button {
-      background-color: #4285F4;
-      color: white;
-      border: none;
-      padding: 12px;
-      width: 100%;
-      margin-top: 20px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #357ae8;
-    }
-  </style>
+  <title>Voice Assistant Form</title>
 </head>
 <body>
+  <h1>Voice Assistant Form</h1>
 
-  <div class="form-container">
-    <h2>Contact Form</h2>
-    <form id="contactForm">
-      <label for="name">Name*</label>
-      <input type="text" id="name" name="name" required>
-
-      <label for="email">Email ID*</label>
-      <input type="email" id="email" name="email" required>
-
-      <label for="phone">Phone Number</label>
-      <input type="tel" id="phone" name="phone" pattern="[0-9]{10}" placeholder="10-digit number">
-
-      <label for="address">Address</label>
-      <textarea id="address" name="address" rows="4"></textarea>
-
-      <button type="submit">Submit</button>
-    </form>
-
-    <button onclick="startRecording()">🎤 Start Voice</button>
-    <audio id="playAudio" controls></audio>
-  </div>
+  <button id="askButton">Ask Question</button>
+  <p id="responseText"></p>
+  <audio id="audioPlayer" controls></audio>
 
   <script>
-    AWS.config.region = 'us-east-1'; // Replace with your region
-    AWS.config.credentials = new AWS.Credentials('YOUR_ACCESS_KEY', 'YOUR_SECRET_KEY');
+    const apiUrl = "https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly"; // replace with your API Gateway URL
 
-    const lex = new AWS.LexRuntimeV2();
+    document.getElementById("askButton").addEventListener("click", async () => {
+      const userText = prompt("What would you like to ask?");
+      if (!userText) return;
 
-    async function startRecording() {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      let chunks = [];
+      const responseTextEl = document.getElementById("responseText");
+      const audioPlayer = document.getElementById("audioPlayer");
 
-      mediaRecorder.ondataavailable = e => chunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/wav' });
-        const reader = new FileReader();
-        reader.onload = () => sendToLex(reader.result);
-        reader.readAsArrayBuffer(blob);
-      };
+      try {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ text: userText })
+        });
 
-      mediaRecorder.start();
-      setTimeout(() => mediaRecorder.stop(), 4000);
-    }
+        const data = await response.json();
 
-    async function sendToLex(audioBytes) {
-      const params = {
-        botId: 'YOUR_BOT_ID',
-        botAliasId: 'YOUR_ALIAS_ID',
-        localeId: 'en_US',
-        sessionId: 'user-session',
-        requestContentType: 'audio/l16; rate=16000; channels=1',
-        responseContentType: 'audio/mpeg',
-        inputStream: audioBytes
-      };
+        if (data.audio) {
+          // Display the text response
+          responseTextEl.textContent = "Polly says: " + data.text;
 
-      lex.recognizeUtterance(params, function(err, data) {
-        if (err) {
-          console.error(err);
-        } else {
-          // Play back Lex audio stream (e.g., default voice if Polly not used)
-          const audioBlob = new Blob([data.audioStream], { type: 'audio/mpeg' });
+          // Convert base64 to audio
+          const audioBlob = b64ToBlob(data.audio, "audio/mp3");
           const audioUrl = URL.createObjectURL(audioBlob);
-          document.getElementById("playAudio").src = audioUrl;
+          audioPlayer.src = audioUrl;
+          audioPlayer.play();
+        } else {
+          responseTextEl.textContent = "No audio returned.";
+        }
+      } catch (error) {
+        console.error("Error:", error);
+        responseTextEl.textContent = "Error occurred while calling the API.";
+      }
+    });
 
-          // Decode Lex response text for slots + Polly base64
-          try {
-            const messages = JSON.parse
+    function b64ToBlob(base64, mime) {
+      const byteChars = atob(base64);
+      const byteArrays = [];
+      for (let offset = 0; offset < byteChars.length; offset += 512) {
+        const slice = byteChars.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+        byteArrays.push(new Uint8Array(byteNumbers));
+      }
+      return new Blob(byteArrays, { type: mime });
+    }
+  </script>
+</body>
+</html>
