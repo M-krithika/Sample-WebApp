@@ -4,11 +4,8 @@
   <meta charset="UTF-8">
   <title>Sample Form</title>
 
-  <!-- ✅ Load AWS SDK (Lex, Kendra, etc.) -->
+  <!-- ✅ Load AWS SDK (Lex, Polly, etc.) -->
   <script src="https://sdk.amazonaws.com/js/aws-sdk-2.1.24.min.js"></script>
-
-  <!-- Optionally load Lex Web UI (when you integrate it) -->
-  <!-- <script src="https://your-cdn-path/lex-web-ui-loader.min.js"></script> -->
 
   <style>
     body {
@@ -73,7 +70,6 @@
     </form>
   </div>
 
-  <!-- ✅ AWS SDK is loaded, now you can write voice-based logic -->
   <script>
     document.getElementById('contactForm').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -81,7 +77,7 @@
       this.reset();
     });
 
-    // Placeholder: Once Lex integration is added, you can fill the form fields like:
+    // 🔁 Fill the form using Lex slot data (for automation)
     function fillFormFromLex(data) {
       document.getElementById("name").value = data.Name || "";
       document.getElementById("email").value = data.Email || "";
@@ -89,14 +85,53 @@
       document.getElementById("address").value = data.Address || "";
     }
 
-    // Example: If Lex returns slot values
+    // 🔊 Polly Playback if Lex response includes pollyAudio attribute
+    function handleLexResponse(response) {
+      if (response.sessionState?.sessionAttributes?.pollyAudio) {
+        const audioData = response.sessionState.sessionAttributes.pollyAudio;
+        const audio = new Audio("data:audio/mp3;base64," + audioData);
+        audio.play();
+      }
+
+      if (response.messages?.length) {
+        const message = response.messages[0].content;
+        console.log("Lex says:", message);
+      }
+
+      // Example: Auto-fill form using slot values
+      const slots = response.sessionState?.intent?.slots;
+      if (slots) {
+        fillFormFromLex({
+          Name: slots.name?.value?.interpretedValue,
+          Email: slots.email?.value?.interpretedValue,
+          Phone: slots.phone?.value?.interpretedValue,
+          Address: slots.address?.value?.interpretedValue
+        });
+      }
+    }
+
+    // 👇 Example usage
     /*
-    fillFormFromLex({
-      Name: "John",
-      Email: "john@example.com",
-      Phone: "9876543210",
-      Address: "Door No: 1-2-314 Hyderabad"
-    });
+    const sampleResponse = {
+      sessionState: {
+        intent: {
+          slots: {
+            name: { value: { interpretedValue: "John" } },
+            email: { value: { interpretedValue: "john@example.com" } },
+            phone: { value: { interpretedValue: "9876543210" } },
+            address: { value: { interpretedValue: "Door No: 1-2-314 Hyderabad" } }
+          }
+        },
+        sessionAttributes: {
+          pollyAudio: "<BASE64_ENCODED_AUDIO_STRING>"
+        }
+      },
+      messages: [
+        { contentType: "PlainText", content: "Please tell me your email." }
+      ]
+    };
+
+    handleLexResponse(sampleResponse);
     */
   </script>
 
