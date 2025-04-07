@@ -128,47 +128,55 @@
     }
 
     async function startTranscription() {
-      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
-      const { transcribe_url } = await res.json();
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioCtx = new AudioContext();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-      const ws = new WebSocket(transcribe_url);
-      ws.binaryType = 'arraybuffer';
+      try {
+        const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
+        const { transcribe_url } = await res.json();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const audioCtx = new AudioContext();
+        const source = audioCtx.createMediaStreamSource(stream);
+        const processor = audioCtx.createScriptProcessor(4096, 1, 1);
+        const ws = new WebSocket(transcribe_url);
+        ws.binaryType = 'arraybuffer';
 
-      ws.onopen = () => {
-        source.connect(processor);
-        processor.connect(audioCtx.destination);
-        processor.onaudioprocess = e => {
-          const input = e.inputBuffer.getChannelData(0);
-          const int16 = convertFloat32ToInt16(input);
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(int16);
+        ws.onopen = () => {
+          source.connect(processor);
+          processor.connect(audioCtx.destination);
+          processor.onaudioprocess = e => {
+            const input = e.inputBuffer.getChannelData(0);
+            const int16 = convertFloat32ToInt16(input);
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(int16);
+            }
+          };
+        };
+
+        ws.onmessage = msg => {
+          console.log("Raw WebSocket message:", msg.data);
+          try {
+            const text = new TextDecoder("utf-8").decode(msg.data);
+            if (!text.trim().startsWith('{')) return;
+            const json = JSON.parse(text);
+            const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+            if (transcript) {
+              console.log("Transcript:", transcript);
+              fillFormField(transcript);
+            }
+          } catch (e) {
+            console.error("Message parsing error:", e);
           }
         };
-      };
 
-      ws.onmessage = msg => {
-        try {
-          const text = new TextDecoder("utf-8").decode(msg.data);
-          if (!text.trim().startsWith('{')) return;
-          const json = JSON.parse(text);
-          const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-          if (transcript) {
-            console.log("Transcript:", transcript);
-            fillFormField(transcript);
-          }
-        } catch (e) {
-          console.error("Message parsing error:", e);
-        }
-      };
+        ws.onerror = err => console.error("WebSocket error:", err);
+        ws.onclose = (event) => {
+            voiceButton.classList.remove("buzz");
+            console.log("WebSocket closed:", event.code, event.reason);
+        };
 
-      ws.onerror = err => console.error("WebSocket error:", err);
-      ws.onclose = () => {
-        voiceButton.classList.remove("buzz");
-        console.log("WebSocket closed");
-      };
+      } catch (err) {
+        console.error("Error getting audio stream:", err);
+        await speak("Microphone access denied or not available.");
+        return;
+      }
     }
 
     function convertFloat32ToInt16(buffer) {
@@ -211,6 +219,7 @@
 
       if (value) {
         field.value = value;
+        console.log("Extracted value:", value, "for field:", fieldId);
         currentField++;
         if (currentField < fields.length) {
           await speak(`Thanks! Can I get your ${fields[currentField]}?`);
