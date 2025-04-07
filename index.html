@@ -156,6 +156,7 @@
           const json = JSON.parse(text);
           const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
           if (transcript) {
+            console.log("Transcript:", transcript);
             fillFormField(transcript);
           }
         } catch (e) {
@@ -179,25 +180,40 @@
     }
 
     async function fillFormField(text) {
-      const cleaned = text.toLowerCase().replace(/[^\w\s@.]/gi, "").trim();
+      text = text.trim().toLowerCase();
       const fieldId = fields[currentField];
       const field = document.getElementById(fieldId);
 
-      if (field && !field.value) {
-        if (fieldId === 'email' && cleaned.includes('@')) {
-          const emailMatch = cleaned.match(/\S+@\S+\.\S+/);
-          field.value = emailMatch ? emailMatch[0] : cleaned;
-        } else if (fieldId === 'phone') {
-          const phone = cleaned.match(/\d{10,}/);
-          field.value = phone ? phone[0] : cleaned;
-        } else {
-          const match = cleaned.match(/(?:my name is|i am|this is)?\s*(.*)/);
-          field.value = match ? match[1] : cleaned;
-        }
+      if (!field || field.value) return;
 
+      let value = "";
+
+      switch (fieldId) {
+        case "name":
+          const nameMatch = text.match(/(?:my name is|i am|this is)?\s*(\b[A-Z][a-z]+\b(?:\s[A-Z][a-z]+\b)?)/i);
+          value = nameMatch ? nameMatch[1] : text;
+          break;
+
+        case "email":
+          const emailMatch = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/);
+          value = emailMatch ? emailMatch[0] : text;
+          break;
+
+        case "phone":
+          const phoneMatch = text.match(/(\+?\d[\d\s\-]{7,15})/);
+          value = phoneMatch ? phoneMatch[1].replace(/\D/g, '') : text;
+          break;
+
+        case "address":
+          value = text;
+          break;
+      }
+
+      if (value) {
+        field.value = value;
         currentField++;
         if (currentField < fields.length) {
-          await speak(`Can I get your ${fields[currentField]}?`);
+          await speak(`Thanks! Can I get your ${fields[currentField]}?`);
         } else {
           document.getElementById("submitBtn").click();
           await speak("Thank you for submitting the form. You did great!");
