@@ -108,21 +108,29 @@
         };
       };
 
-      ws.onmessage = async (msg) => {
+      ws.onmessage = async (event) => {
         try {
-          const text = await msg.data.text();
+          // Convert the ArrayBuffer to a string
+          const decoder = new TextDecoder('utf-8');
+          const text = decoder.decode(event.data);
+      
+          // Split the text into lines and find the JSON part
           const lines = text.split('\r\n');
-          const jsonLine = lines.find(line => line.trim().startsWith('{'));
-          if (!jsonLine) return;
-          const message = JSON.parse(jsonLine);
-          const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-
-          if (transcript && transcript.length > 0) {
-            console.log("Transcript:", transcript);
-            fillFormField(transcript);
+          const jsonLine = lines.find(line => line.startsWith('{'));
+      
+          if (jsonLine) {
+            const message = JSON.parse(jsonLine);
+            const transcript = message.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
+      
+            if (transcript) {
+              console.log("Transcript:", transcript);
+              fillFormField(transcript);
+            }
+          } else {
+            console.warn("No JSON data found in message:", text);
           }
-        } catch (err) {
-          console.error("Parsing error:", err);
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
         }
       };
 
