@@ -1,224 +1,531 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sample Form</title>
-  <link rel="icon" href="data:,">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f0f8ff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-
-    .form-container {
-      background: white;
-      padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.2);
-      width: 100%;
-      max-width: 400px;
-    }
-
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-
-    label {
-      display: block;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-
-    input {
-      width: 100%;
-      padding: 8px;
-      margin-top: 5px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-    }
-
-    button {
-      margin-top: 20px;
-      width: 100%;
-      padding: 10px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
-    #voiceButton {
-      position: fixed;
-      bottom: 20px;
-      left: 20px;
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      border: none;
-      background-color: #4CAF50;
-      background-image: url('https://img.icons8.com/emoji/48/robot-emoji.png');
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 60%;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      transition: transform 0.3s;
-    }
-
-    #voiceButton.buzz {
-      animation: buzz 0.2s infinite alternate;
-    }
-
-    @keyframes buzz {
-      from { transform: translateX(2px); }
-      to { transform: translateX(-2px); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Assistant Premium Form</title>
+    <style>
+        :root {
+            --primary-color: #4a6fa5;
+            --secondary-color: #6c757d;
+            --success-color: #4caf50;
+            --background-color: #f9fbfd;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            --border-radius: 12px;
+            --transition: all 0.3s ease;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 0;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--primary-color), #2c3e50);
+            color: white;
+            width: 100%;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .header h1 {
+            font-weight: 300;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 1200px;
+            padding: 0 20px;
+            margin-bottom: 40px;
+        }
+        
+        .flex-container {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            padding: 40px;
+            transition: var(--transition);
+            flex: 1;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--secondary-color);
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            border: 1px solid #e1e5eb;
+            border-radius: 8px;
+            background-color: #f8fafc;
+            transition: var(--transition);
+            color: var(--text-color);
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.15);
+        }
+        
+        .form-control[readonly] {
+            background-color: #f5f7fa;
+            border: 1px solid #e1e5eb;
+            cursor: not-allowed;
+        }
+        
+        .btn {
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            border: none;
+            transition: var(--transition);
+            text-align: center;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #3a5a84;
+            box-shadow: 0 5px 15px rgba(74, 111, 165, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #3d8b40;
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-icon {
+            margin-right: 10px;
+        }
+        
+        #submitButton {
+            display: none;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .response-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .response-content {
+            padding: 20px;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            white-space: pre-wrap;
+            font-size: 16px;
+            height: 350px;
+            overflow-y: auto;
+        }
+        
+        .form-status {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #e8f5e9;
+            color: var(--success-color);
+            display: none;
+        }
+        
+        .completed {
+            display: block;
+        }
+        
+        footer {
+            margin-top: auto;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--secondary-color);
+            width: 100%;
+        }
+        
+        .card-title {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        @media (max-width: 992px) {
+            .flex-container {
+                flex-direction: column;
+            }
+            
+            .card {
+                width: 100%;
+            }
+            
+            .response-content {
+                height: 250px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .card {
+                padding: 25px;
+            }
+            
+            .container {
+                width: 100%;
+                padding: 0 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="form-container">
-    <h2>AI Voice Form</h2>
-    <label for="name">Name:</label>
-    <input type="text" id="name" placeholder="Enter your name">
+    <div class="header">
+        <h1>Voice-Assisted Form</h1>
+        <p>Complete your information using our advanced voice recognition system</p>
+    </div>
+    
+    <div class="container">
+        <div class="flex-container">
+            <div class="card">
+                <h2 class="card-title">Your Information</h2>
+                <form id="myForm">
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" class="form-control" id="name" placeholder="Your name" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" class="form-control" id="email" placeholder="Your email" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" class="form-control" id="phone" placeholder="Your phone number" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <input type="text" class="form-control" id="address" placeholder="Your address" readonly>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="button" id="startButton" class="btn btn-primary">
+                            <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                                <line x1="12" y1="19" x2="12" y2="23"></line>
+                                <line x1="8" y1="23" x2="16" y2="23"></line>
+                            </svg>
+                            Start Voice Assistant
+                        </button>
+                        
+                        <button type="button" id="submitButton" class="btn btn-success">
+                            <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            Submit Form
+                        </button>
+                    </div>
+                    
+                    <div id="formStatus" class="form-status">
+                        Form submitted successfully. Thank you!
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card">
+                <div class="response-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 10px;">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    Assistant Response
+                </div>
+                <div id="responseArea" class="response-content"></div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>© 2025 Voice Assistant Premium Form | Powered by AWS Lex and Polly</p>
+    </footer>
 
-    <label for="email">Email:</label>
-    <input type="email" id="email" placeholder="Enter your email">
+    <script>
+        const API_ENDPOINT = 'https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com';
+        let isListening = false;
+        let recognition;
+        let sessionId = 'session-' + Date.now();
+        let formCompleted = false;
 
-    <label for="phone">Phone:</label>
-    <input type="tel" id="phone" placeholder="Enter your phone number">
+        document.getElementById('startButton').addEventListener('click', toggleVoiceAssistant);
+        document.getElementById('submitButton').addEventListener('click', submitForm);
 
-    <label for="address">Address:</label>
-    <input type="text" id="address" placeholder="Enter your address">
-
-    <button type="submit" id="submitBtn">Submit</button>
-  </div>
-
-  <button id="voiceButton" title="Start voice assistant"></button>
-
-  <script>
-    const voiceButton = document.getElementById("voiceButton");
-    const fields = ['name', 'email', 'phone', 'address'];
-    let currentField = 0;
-
-    voiceButton.onclick = async () => {
-      voiceButton.classList.add("buzz");
-      await speak("Hello, I am your AI assistant. I will help you fill this form. Can I get your name?");
-      startTranscription();
-    };
-
-    async function speak(text) {
-      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/polly', {
-        method: 'POST',
-        body: JSON.stringify({ text }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      const audio = new Audio("data:audio/mp3;base64," + data.audio);
-      audio.play();
-      return new Promise(resolve => audio.onended = resolve);
-    }
-
-    async function startTranscription() {
-      const res = await fetch('https://n4kgojcoui.execute-api.eu-west-1.amazonaws.com/transcribe-url');
-      const { transcribe_url } = await res.json();
-      const ws = new WebSocket(transcribe_url);
-      ws.binaryType = 'arraybuffer';
-
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const audioCtx = new AudioContext();
-      await audioCtx.audioWorklet.addModule('processor.js');
-
-      const source = audioCtx.createMediaStreamSource(stream);
-      const workletNode = new AudioWorkletNode(audioCtx, 'pcm-worklet-processor');
-
-      workletNode.port.onmessage = (event) => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(event.data);
+        // Check if all form fields are filled
+        function checkFormCompletion() {
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const phone = document.getElementById('phone').value;
+            const address = document.getElementById('address').value;
+            
+            if (name && email && phone && address) {
+                document.getElementById('submitButton').style.display = 'inline-flex';
+                formCompleted = true;
+            }
         }
-      };
 
-      source.connect(workletNode);
-      workletNode.connect(audioCtx.destination);
-
-      ws.onmessage = (msg) => {
-        try {
-          const text = new TextDecoder("utf-8").decode(msg.data);
-          if (!text.trim().startsWith('{')) return;
-          const json = JSON.parse(text);
-          const transcript = json.Transcript?.Results?.[0]?.Alternatives?.[0]?.Transcript;
-          if (transcript) {
-            fillFormField(transcript);
-          }
-        } catch (e) {
-          console.error("WebSocket message error:", e);
+        function submitForm() {
+            document.getElementById('formStatus').classList.add('completed');
+            document.getElementById('submitButton').disabled = true;
+            
+            // Here you could add code to actually submit the form data to a server
+            console.log("Form submitted with the following data:");
+            console.log({
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                address: document.getElementById('address').value
+            });
+            
+            // Display success message
+            updateResponseArea("Form has been submitted successfully. Thank you!");
+            
+            // You could also add some visual indication that the form is now read-only
+            const inputs = document.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.style.backgroundColor = '#f0f2f5';
+            });
         }
-      };
 
-      ws.onerror = err => console.error("WebSocket error:", err);
-      ws.onclose = () => {
-        voiceButton.classList.remove("buzz");
-        console.log("WebSocket closed");
-      };
-    }
-
-    async function fillFormField(text) {
-      text = text.trim();
-      const fieldId = fields[currentField];
-      const field = document.getElementById(fieldId);
-
-      if (!field || field.value) return;
-
-      let value = "";
-
-      switch (fieldId) {
-        case "name":
-          const nameMatch = text.match(/(?:my name is|i am|this is)?\s*([a-zA-Z\s]+)/i);
-          value = nameMatch ? nameMatch[1].trim() : text;
-          break;
-
-        case "email":
-          const emailMatch = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
-          value = emailMatch ? emailMatch[0] : text;
-          break;
-
-        case "phone":
-          const phoneMatch = text.match(/(\+?\d[\d\s\-]{7,15})/);
-          value = phoneMatch ? phoneMatch[1].replace(/\D/g, '') : text;
-          break;
-
-        case "address":
-          value = text;
-          break;
-      }
-
-      if (value) {
-        field.value = value;
-        currentField++;
-        if (currentField < fields.length) {
-          await speak(`Thanks! Can I get your ${fields[currentField]}?`);
-        } else {
-          document.getElementById("submitBtn").click();
-          await speak("Thank you for submitting the form. You did great!");
+        async function toggleVoiceAssistant() {
+            if (isListening) {
+                stopListening();
+            } else {
+                await startListening();
+            }
         }
-      }
-    }
 
-    document.getElementById("submitBtn").onclick = () => {
-      console.log("Form Submitted:");
-      console.log("Name:", document.getElementById("name").value);
-      console.log("Email:", document.getElementById("email").value);
-      console.log("Phone:", document.getElementById("phone").value);
-      console.log("Address:", document.getElementById("address").value);
-      alert("Form submitted! Thank you.");
-    };
-  </script>
+        async function startListening() {
+            isListening = true;
+            const startButton = document.getElementById('startButton');
+            startButton.innerHTML = `
+                <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                </svg>
+                Stop Voice Assistant
+            `;
+            startButton.classList.add('listening');
+            
+            await sendToLex("Hello");
+            
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+            
+            recognition.onresult = async function(event) {
+                const last = event.results.length - 1;
+                const text = event.results[last][0].transcript;
+                console.log("Recognized speech:", text);
+                await sendToLex(text);
+            };
+            
+            recognition.onend = function() {
+                if (isListening) {
+                    recognition.start();
+                }
+            };
+            
+            recognition.start();
+        }
+
+        function stopListening() {
+            isListening = false;
+            const startButton = document.getElementById('startButton');
+            startButton.innerHTML = `
+                <svg class="btn-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                    <line x1="12" y1="19" x2="12" y2="23"></line>
+                    <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+                Start Voice Assistant
+            `;
+            startButton.classList.remove('listening');
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        async function sendToLex(text) {
+            if (!text || text.trim().length === 0) {
+                console.log("Empty input, not sending to Lex");
+                return;
+            }
+
+            try {
+                console.log("Sending to Lex:", text);
+                const response = await fetch(`${API_ENDPOINT}/lex`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ inputText: text, sessionId: sessionId })
+                });
+
+                console.log("Response status:", response.status);
+                const responseText = await response.text();
+                console.log("Response text:", responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
+                }
+
+                const data = JSON.parse(responseText);
+                await handleLexResponse(data);
+            } catch (error) {
+                console.error("Error sending to Lex:", error);
+                updateResponseArea("Error: " + error.message);
+            }
+        }
+
+        async function handleLexResponse(lexResponse) {
+            console.log("Lex response:", JSON.stringify(lexResponse, null, 2));
+            
+            if (lexResponse.sessionState && lexResponse.sessionState.intent && lexResponse.sessionState.intent.slots) {
+                const slots = lexResponse.sessionState.intent.slots;
+                for (const [key, value] of Object.entries(slots)) {
+                    if (value && value.value && value.value.interpretedValue) {
+                        document.getElementById(key.toLowerCase()).value = value.value.interpretedValue;
+                    }
+                }
+                
+                // Check if form is complete after updating fields
+                checkFormCompletion();
+            }
+
+            if (lexResponse.messages && lexResponse.messages.length > 0) {
+                const message = lexResponse.messages[0].content;
+                updateResponseArea(message);
+                await speak(message);
+            }
+
+            if (lexResponse.sessionState && lexResponse.sessionState.intent && lexResponse.sessionState.intent.state === 'Fulfilled') {
+                updateResponseArea("All information collected. You can now submit the form.");
+                stopListening();
+                
+                // Ensure the submit button is shown when Lex has fulfilled the intent
+                document.getElementById('submitButton').style.display = 'inline-flex';
+            }
+        }
+
+        async function speak(text) {
+            try {
+                console.log("Sending to Polly:", text);
+                const response = await fetch(`${API_ENDPOINT}/polly`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                console.log("Polly response status:", response.status);
+                const responseText = await response.text();
+                console.log("Polly response text:", responseText);
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
+                }
+
+                const data = JSON.parse(responseText);
+                if (data.audio) {
+                    await playAudio(data.audio);
+                } else {
+                    throw new Error('No audio data received from Polly');
+                }
+            } catch (error) {
+                console.error("Error with text-to-speech:", error);
+                updateResponseArea("Error with text-to-speech: " + error.message);
+            }
+        }
+
+        async function playAudio(base64Audio) {
+            return new Promise((resolve, reject) => {
+                const audio = new Audio("data:audio/mp3;base64," + base64Audio);
+                audio.onended = resolve;
+                audio.onerror = reject;
+                audio.play();
+            });
+        }
+
+        function updateResponseArea(text) {
+            const responseArea = document.getElementById('responseArea');
+            responseArea.textContent += text + '\n';
+            responseArea.scrollTop = responseArea.scrollHeight;
+        }
+    </script>
 </body>
 </html>
