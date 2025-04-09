@@ -319,6 +319,10 @@
         let recognition;
         let sessionId = 'session-' + Date.now();
         let formCompleted = false;
+        let speechBuffer = '';
+        let debounceTimeout;
+        let confirmationState = 'none'; // 'none', 'awaitingEmailConfirmation'
+        let lastProcessedEmail = ''; // Track the last email to avoid duplicate prompts
 
         document.getElementById('startButton').addEventListener('click', toggleVoiceAssistant);
         document.getElementById('submitButton').addEventListener('click', submitForm);
@@ -340,7 +344,6 @@
             document.getElementById('formStatus').classList.add('completed');
             document.getElementById('submitButton').disabled = true;
             
-            // Here you could add code to actually submit the form data to a server
             console.log("Form submitted with the following data:");
             console.log({
                 name: document.getElementById('name').value,
@@ -349,10 +352,8 @@
                 address: document.getElementById('address').value
             });
             
-            // Display success message
             updateResponseArea("Form has been submitted successfully. Thank you!");
             
-            // You could also add some visual indication that the form is now read-only
             const inputs = document.querySelectorAll('input');
             inputs.forEach(input => {
                 input.style.backgroundColor = '#f0f2f5';
@@ -381,24 +382,70 @@
             
             await sendToLex("Hello");
             
-            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.continuous = false;
-            recognition.lang = 'en-US';
-            
-            recognition.onresult = async function(event) {
-                const last = event.results.length - 1;
-                const text = event.results[last][0].transcript;
-                console.log("Recognized speech:", text);
-                await sendToLex(text);
-            };
-            
-            recognition.onend = function() {
-                if (isListening) {
-                    recognition.start();
-                }
-            };
-            
-            recognition.start();
+            try {
+                recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+                recognition.continuous = true;
+                recognition.interimResults = false; // Only get final results
+                recognition.lang = 'en-US';
+                
+                recognition.onresult = async function(event) {
+                    const last = event.results.length - 1;
+                    const text = event.results[last][0].transcript;
+                    speechBuffer = text;
+                    console.log("Raw speech input:", speechBuffer); // Debug initial input
+                    
+                    clearTimeout(debounceTimeout);
+                    debounceTimeout = setTimeout(async () => {
+                        // Process voice input directly based on confirmation state
+                        if (confirmationState === 'awaitingEmailConfirmation') {
+                            const userResponse = speechBuffer.toLowerCase().trim();
+                            if (userResponse.includes('yes')) {
+                                confirmationState = 'none';
+                                updateResponseArea("Email confirmed.");
+                                await speak("Email confirmed.");
+                                await sendToLex("Next"); // Move to next slot
+                            } else if (userResponse.includes('no')) {
+                                confirmationState = 'none';
+                                lastProcessedEmail = '';
+                                document.getElementById('email').value = '';
+                                updateResponseArea("Please say your email again.");
+                                await speak("Please say your email again.");
+                            } else {
+                                // If neither yes nor no, ask again
+                                updateResponseArea("Please say yes or no to confirm your email.");
+                                await speak("Please say yes or no to confirm your email.");
+                            }
+                        } else {
+                            // Normal processing for other inputs
+                            await sendToLex(speechBuffer);
+                        }
+                        speechBuffer = '';
+                    }, 1000); // Reduced to 1 second for better responsiveness
+                };
+                
+                recognition.onend = function() {
+                    if (isListening) {
+                        recognition.start();
+                    }
+                };
+                
+                recognition.onerror = function(event) {
+                    console.error("Speech recognition error:", event.error);
+                    if (isListening) {
+                        // Try to restart if there's an error
+                        setTimeout(() => {
+                            if (isListening) {
+                                recognition.start();
+                            }
+                        }, 1000);
+                    }
+                };
+                
+                recognition.start();
+            } catch (error) {
+                console.error("Error starting speech recognition:", error);
+                updateResponseArea("Could not start speech recognition. Please check your browser permissions.");
+            }
         }
 
         function stopListening() {
@@ -417,6 +464,7 @@
             if (recognition) {
                 recognition.stop();
             }
+            clearTimeout(debounceTimeout); // Clear any pending timeouts
         }
 
         async function sendToLex(text) {
@@ -437,7 +485,7 @@
 
                 console.log("Response status:", response.status);
                 const responseText = await response.text();
-                console.log("Response text:", responseText);
+                console.log("Raw Lex response:", responseText);
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
@@ -452,31 +500,50 @@
         }
 
         async function handleLexResponse(lexResponse) {
-            console.log("Lex response:", JSON.stringify(lexResponse, null, 2));
+            console.log("Parsed Lex response:", JSON.stringify(lexResponse, null, 2));
             
+            // Process slots first - don't check confirmation state here as we handle it in onresult
             if (lexResponse.sessionState && lexResponse.sessionState.intent && lexResponse.sessionState.intent.slots) {
                 const slots = lexResponse.sessionState.intent.slots;
                 for (const [key, value] of Object.entries(slots)) {
                     if (value && value.value && value.value.interpretedValue) {
-                        document.getElementById(key.toLowerCase()).value = value.value.interpretedValue;
+                        const interpretedValue = value.value.interpretedValue;
+                        console.log(`Processing slot: ${key} = ${interpretedValue}`); // Debug slot value
+                        
+                        if (key.toLowerCase() === 'email' && interpretedValue !== lastProcessedEmail) {
+                            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                            if (!emailRegex.test(interpretedValue)) {
+                                updateResponseArea("That doesn't seem like a valid email. Please say your email again.");
+                                await speak("That doesn't seem like a valid email. Please say your email again.");
+                            } else {
+                                document.getElementById('email').value = interpretedValue;
+                                lastProcessedEmail = interpretedValue;
+                                confirmationState = 'awaitingEmailConfirmation';
+                                updateResponseArea(`I heard your email as: ${interpretedValue}. Is that correct? Say yes or no.`);
+                                await speak(`I heard your email as: ${interpretedValue}. Is that correct? Say yes or no.`);
+                                return; // Prevent further processing until email is confirmed
+                            }
+                        } else if (key.toLowerCase() !== 'email' || confirmationState !== 'awaitingEmailConfirmation') {
+                            // Update other form fields if not awaiting email confirmation
+                            document.getElementById(key.toLowerCase()).value = interpretedValue;
+                        }
                     }
                 }
-                
-                // Check if form is complete after updating fields
                 checkFormCompletion();
             }
 
+            // Handle Lex messages (prompts for next slots)
             if (lexResponse.messages && lexResponse.messages.length > 0) {
                 const message = lexResponse.messages[0].content;
                 updateResponseArea(message);
                 await speak(message);
             }
 
+            // Check if intent is fulfilled
             if (lexResponse.sessionState && lexResponse.sessionState.intent && lexResponse.sessionState.intent.state === 'Fulfilled') {
                 updateResponseArea("All information collected. You can now submit the form.");
+                await speak("All information collected. You can now submit the form.");
                 stopListening();
-                
-                // Ensure the submit button is shown when Lex has fulfilled the intent
                 document.getElementById('submitButton').style.display = 'inline-flex';
             }
         }
@@ -493,14 +560,13 @@
                 });
 
                 console.log("Polly response status:", response.status);
-                const responseText = await response.text();
-                console.log("Polly response text:", responseText);
-
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                const data = JSON.parse(responseText);
+                const data = await response.json(); // Changed to response.json() for better error handling
+                
                 if (data.audio) {
                     await playAudio(data.audio);
                 } else {
@@ -514,10 +580,26 @@
 
         async function playAudio(base64Audio) {
             return new Promise((resolve, reject) => {
-                const audio = new Audio("data:audio/mp3;base64," + base64Audio);
-                audio.onended = resolve;
-                audio.onerror = reject;
-                audio.play();
+                try {
+                    const audio = new Audio("data:audio/mp3;base64," + base64Audio);
+                    audio.onended = resolve;
+                    audio.onerror = (e) => {
+                        console.error("Audio playback error:", e);
+                        reject(e);
+                    };
+                    const playPromise = audio.play();
+                    
+                    // Handle the play promise to catch errors
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            console.error("Audio play error:", error);
+                            reject(error);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error creating audio element:", error);
+                    reject(error);
+                }
             });
         }
 
